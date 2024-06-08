@@ -20,7 +20,6 @@ This project aims to create a Pokedex Image Classifier using TensorFlow Lite and
 
 ## Screenshots
 
-| Current UI | Inference Result | Planned UI Remodel | Pokedex-Style Output |
 |------------|------------------|---------------------|----------------------|
 | ![Screenshot 1](screenshots/1.png) | ![Screenshot 2](screenshots/2.png) | ![Screenshot 3](screenshots/3.png) | ![Screenshot 4](screenshots/4.png) |
 
