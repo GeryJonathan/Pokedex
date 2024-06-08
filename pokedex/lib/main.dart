@@ -5,10 +5,15 @@ import 'package:tflite/tflite.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Tflite.loadModel(
-    model: "assets/pokemon-classifier.tflite",
-    labels: "assets/labels.txt",
-  );
+  try {
+    String? res = await Tflite.loadModel(
+      model: "assets/pokemon-classifier.tflite",
+      labels: "assets/labels.txt",
+    );
+    print('Model loaded: $res');
+  } catch (e) {
+    print('Failed to load model: $e');
+  }
   runApp(MyApp());
 }
 
@@ -32,7 +37,6 @@ class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  // ignore: library_private_types_in_public_api
   _SplashScreenState createState() => _SplashScreenState();
 }
 
@@ -40,21 +44,7 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _loadModel().then((_) {
-      _navigateToMainPage();
-    });
-  }
-
-  Future<void> _loadModel() async {
-    try {
-      String? res = await Tflite.loadModel(
-        model: 'assets/pokemon-classifier.tflite',
-        labels: 'assets/labels.txt',
-      );
-      print('Model loaded: $res');
-    } catch (e) {
-      print('Failed to load model: $e');
-    }
+    _navigateToMainPage();
   }
 
   _navigateToMainPage() async {
