@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
-import 'splash_screen.dart';
+// import 'splash_screen.dart';
 import 'main_page.dart';
 import 'package:tflite/tflite.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Tflite.loadModel(
+    model: "assets/pokemon-classifier.tflite",
+    labels: "assets/labels.txt",
+  );
   runApp(MyApp());
 }
 
@@ -24,7 +29,10 @@ class MyApp extends StatelessWidget {
 }
 
 class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+
   @override
+  // ignore: library_private_types_in_public_api
   _SplashScreenState createState() => _SplashScreenState();
 }
 
@@ -40,7 +48,7 @@ class _SplashScreenState extends State<SplashScreen> {
   Future<void> _loadModel() async {
     try {
       String? res = await Tflite.loadModel(
-        model: 'assets/model.tflite',
+        model: 'assets/pokemon-classifier.tflite',
         labels: 'assets/labels.txt',
       );
       print('Model loaded: $res');
@@ -50,7 +58,7 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   _navigateToMainPage() async {
-    await Future.delayed(Duration(seconds: 3), () {});
+    await Future.delayed(const Duration(seconds: 3), () {});
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => MainPage()),
@@ -59,7 +67,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return const Scaffold(
       body: Center(
         child: Text(
           'Welcome to Pokemon Classifier',

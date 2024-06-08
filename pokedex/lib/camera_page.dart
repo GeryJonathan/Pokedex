@@ -1,7 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:image_picker/image_picker.dart';
-import 'inference_page.dart';
 
 class CameraPage extends StatefulWidget {
   @override
@@ -9,23 +9,27 @@ class CameraPage extends StatefulWidget {
 }
 
 class _CameraPageState extends State<CameraPage> {
-  late CameraController _controller;
-  late List<CameraDescription> cameras;
-  late XFile image;
+  CameraController? _controller;
+  File? image;  // Ensure this is initialized or set before use
+  late Future<void> _initializeControllerFuture;
 
   @override
   void initState() {
     super.initState();
-    availableCameras().then((availableCameras) {
-      cameras = availableCameras;
-      if (cameras.isNotEmpty) {
-        _controller = CameraController(cameras[0], ResolutionPreset.high);
-        _controller.initialize().then((_) {
-          if (!mounted) return;
-          setState(() {});
-        });
-      }
-    });
+     _initializeControllerFuture = initializeCameraController(); // Replace with your initialization logic
+    image = null;
+  }
+
+  Future<void> initializeCameraController() async {
+    final cameras = await availableCameras();
+    final firstCamera = cameras.first;
+
+    _controller = CameraController(
+      firstCamera,
+      ResolutionPreset.high,
+    );
+
+    _initializeControllerFuture = _controller!.initialize();
   }
 
   @override
@@ -34,60 +38,51 @@ class _CameraPageState extends State<CameraPage> {
     super.dispose();
   }
 
-  Future<void> _takePicture() async {
-    if (_controller == null || !_controller.value.isInitialized) {
-      return;
-    }
-    image = await _controller.takePicture();
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => InferencePage(imagePath: image.path),
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Take a picture')),
+      body: FutureBuilder<void>(
+        future: _initializeControllerFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.done) {
+            return CameraPreview(_controller!);
+          } else {
+            return Center(child: CircularProgressIndicator());
+          }
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          try {
+            await _initializeControllerFuture;
+            final image = await _controller!.takePicture();
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => DisplayPictureScreen(imagePath: image.path),
+              ),
+            );
+          } catch (e) {
+            print(e);
+          }
+        },
+        child: Icon(Icons.camera_alt),
       ),
     );
   }
+}
 
-  Future<void> _pickImageFromGallery() async {
-    final pickedImage = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (pickedImage != null) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => InferencePage(imagePath: pickedImage.path),
-        ),
-      );
-    }
-  }
+class DisplayPictureScreen extends StatelessWidget {
+  final String imagePath;
+
+  const DisplayPictureScreen({Key? key, required this.imagePath}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    if (_controller == null || !_controller.value.isInitialized) {
-      return Center(child: CircularProgressIndicator());
-    }
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Capture Pokemon Image'),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: CameraPreview(_controller),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              IconButton(
-                icon: Icon(Icons.camera),
-                onPressed: _takePicture,
-              ),
-              IconButton(
-                icon: Icon(Icons.photo_library),
-                onPressed: _pickImageFromGallery,
-              ),
-            ],
-          ),
-        ],
-      ),
+      appBar: AppBar(title: Text('Display the Picture')),
+      body: Image.file(File(imagePath)),
     );
   }
 }
