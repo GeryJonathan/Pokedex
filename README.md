@@ -1,5 +1,5 @@
 
-# Pokedex Image Classifier
+# Pokedex Image Classifier (Pending)
 
 This project aims to create a Pokedex Image Classifier using TensorFlow Lite and Flutter. The app classifies images of Pokemon and displays the results in a user-friendly interface.
 
