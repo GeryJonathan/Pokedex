@@ -1,140 +1,148 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
-import 'package:tflite_flutter_helper/tflite_flutter_helper.dart';
-import 'inference_result.dart'; // Import the InferenceResultPage
+import 'package:image/image.dart' as img;
+import 'inference_result.dart';
+import 'capture_animation.dart'; // <-- Import the new animation file
 
 class InferencePage extends StatefulWidget {
   final String imagePath;
-
-  const InferencePage({Key? key, required this.imagePath}) : super(key: key);
+  const InferencePage({super.key, required this.imagePath});
 
   @override
-  _InferencePageState createState() => _InferencePageState();
+  State<InferencePage> createState() => _InferencePageState();
 }
 
 class _InferencePageState extends State<InferencePage> {
-  late Interpreter _interpreter;
-  List<String>? _labels;
-  TensorImage? _inputImage;
-  TensorBuffer? _outputBuffer;
+  String? _predictionLabel;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    loadModel();
+    _startCaptureAndInference();
   }
 
-  Future<void> loadModel() async {
+  // New method to run inference and animation in parallel
+  Future<void> _startCaptureAndInference() async {
     try {
-      print('Loading model...');
-      _interpreter = await Interpreter.fromAsset('pokemon-classifier.tflite');
-      print('Model loaded successfully');
+      // Define the fixed duration for our animation
+      Future<void> animationFuture = Future.delayed(const Duration(milliseconds: 5000));
+      
+      // Run the ML model
+      Future<String> inferenceFuture = runInference();
 
-      print('Loading labels...');
-      _labels = await FileUtil.loadLabels('assets/labels.txt');
-      if (_labels == null || _labels!.isEmpty) {
-        throw Exception('Labels not loaded');
+      // Wait for both the animation AND the inference to complete
+      var results = await Future.wait([animationFuture, inferenceFuture]);
+
+      // Once both are done, navigate to the result page
+      final prediction = results[1] as String;
+      if (mounted) {
+        navigateToInferenceResultPage(prediction);
       }
-      print('Labels loaded successfully');
-
-      print('Loading and preprocessing image...');
-      _inputImage = TensorImage.fromFile(File(widget.imagePath));
-      _inputImage = ImageProcessorBuilder()
-          .add(ResizeOp(150, 150, ResizeMethod.BILINEAR))
-          .add(CastOp(TfLiteType.float32))
-          .add(NormalizeOp(0, 1)) // Normalize image to [0, 1]
-          .build()
-          .process(_inputImage!);
-
-      print('Image loaded and preprocessed successfully');
-
-      var outputShape = _interpreter.getOutputTensor(0).shape;
-      _outputBuffer =
-          TensorBuffer.createFixedSize(outputShape, TfLiteType.float32);
-      print(_outputBuffer?.getShape());
-
-      print('Running inference...');
-      _interpreter.run(_inputImage!.buffer, _outputBuffer!.buffer);
-      print('Inference run successfully');
-
-      // Print the raw output buffer values for debugging
-      print('Output buffer values: ${_outputBuffer!.getDoubleList()}');
-
-      setState(() {});
     } catch (e) {
-      print('Failed to load model: $e');
+      if (mounted) {
+        setState(() {
+          _errorMessage = "Failed to run inference. Please try a different image.\n\nError: ${e.toString()}";
+        });
+      }
     }
   }
 
-  @override
-  void dispose() {
-    _interpreter.close();
-    super.dispose();
+  // Modified to return the label instead of setting state
+  Future<String> runInference() async {
+    Interpreter interpreter = await Interpreter.fromAsset('assets/pokemon-classifier.tflite');
+    List<String> labels = await _loadLabels();
+
+    var inputTensor = _preprocessImage(File(widget.imagePath));
+    var outputShape = interpreter.getOutputTensor(0).shape;
+    var outputBuffer = List.generate(outputShape[0], (i) => List.filled(outputShape[1], 0.0));
+    
+    interpreter.run(inputTensor, outputBuffer);
+    
+    List<double> prediction = outputBuffer[0];
+    String predictionLabel = getPredictionLabel(prediction, labels);
+    
+    interpreter.close();
+    return predictionLabel;
   }
 
-  void navigateToInferenceResultPage() {
-    Navigator.push(
+  Future<List<String>> _loadLabels() async {
+    final labelsData = await rootBundle.loadString('assets/labels.txt');
+    return labelsData.split('\n').map((label) => label.trim()).toList();
+  }
+  
+  List<List<List<List<double>>>> _preprocessImage(File imageFile) {
+    // This logic remains the same
+    final imageBytes = imageFile.readAsBytesSync();
+    final image = img.decodeImage(imageBytes);
+    if (image == null) throw Exception("Could not decode image.");
+
+    final resizedImage = img.copyResize(image, width: 150, height: 150);
+    var inputTensor = List.generate(1, (i) => List.generate(150, (j) => List.generate(150, (k) => List.generate(3, (l) => 0.0))));
+    
+    for (var y = 0; y < 150; y++) {
+      for (var x = 0; x < 150; x++) {
+        final pixel = resizedImage.getPixel(x, y);
+        inputTensor[0][y][x][0] = pixel.r / 255.0;
+        inputTensor[0][y][x][1] = pixel.g / 255.0;
+        inputTensor[0][y][x][2] = pixel.b / 255.0;
+      }
+    }
+    return inputTensor;
+  }
+
+  String getPredictionLabel(List<double> prediction, List<String> labels) {
+    // This logic remains the same
+    double maxScore = 0.0;
+    int bestIndex = -1;
+    for (int i = 0; i < prediction.length; i++) {
+      if (prediction[i] > maxScore) {
+        maxScore = prediction[i];
+        bestIndex = i;
+      }
+    }
+    if (bestIndex == -1 || bestIndex >= labels.length) return "Unknown";
+    return labels[bestIndex];
+  }
+
+  void navigateToInferenceResultPage(String predictionLabel) {
+    Navigator.pushReplacement(
       context,
       MaterialPageRoute(
           builder: (context) => InferenceResultPage(
               imagePath: widget.imagePath,
-              predictionLabel: getPredictionLabel())),
+              predictionLabel: predictionLabel)),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Inference Result')),
+      appBar: AppBar(
+        title: Text('CAPTURING...',
+            style: Theme.of(context)
+                .textTheme
+                .titleSmall
+                ?.copyWith(letterSpacing: 2)),
+      ),
       body: Center(
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Image.file(File(widget.imagePath)),
-              SizedBox(height: 16),
-              _outputBuffer != null && _labels != null
-                  ? ElevatedButton(
-                      onPressed: navigateToInferenceResultPage,
-                      child: Text('Show Result'),
-                    )
-                  : CircularProgressIndicator(),
-            ],
-          ),
-        ),
+        child: _errorMessage != null
+            ? Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(
+                  _errorMessage!,
+                  style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                      fontSize: 16,
+                      fontFamily: 'Orbitron'),
+                  textAlign: TextAlign.center,
+                ),
+              )
+            // Show the animation instead of a simple loading indicator
+            : CaptureAnimation(imagePath: widget.imagePath),
       ),
     );
-  }
-
-  String getPredictionLabel() {
-    var outputList = _outputBuffer!.getDoubleList();
-    print('Processed output buffer values: $outputList');
-
-    // Process the output buffer in chunks
-    int chunkSize = 30; // Adjust chunk size as needed
-    double maxVal = double.negativeInfinity;
-    int maxIndex = -1;
-
-    for (int i = 0; i < outputList.length; i += chunkSize) {
-      int end = (i + chunkSize < outputList.length) ? i + chunkSize : outputList.length;
-      List<double> chunk = outputList.sublist(i, end);
-
-      for (int j = 0; j < chunk.length; j++) {
-        if (chunk[j] > maxVal) {
-          maxVal = chunk[j];
-          maxIndex = i + j; // Adjusting index to the original list index
-        }
-      }
-    }
-
-    if (maxIndex == -1) {
-      throw Exception('Failed to find max value in output buffer');
-    }
-
-    print('Max value: $maxVal at index: $maxIndex');
-    print('Predicted label: ${_labels![maxIndex]}');
-
-    return _labels![maxIndex];
   }
 }
