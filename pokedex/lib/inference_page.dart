@@ -28,8 +28,9 @@ class _InferencePageState extends State<InferencePage> {
   Future<void> _startCaptureAndInference() async {
     try {
       // Define the fixed duration for our animation
-      Future<void> animationFuture = Future.delayed(const Duration(milliseconds: 5000));
-      
+      Future<void> animationFuture =
+          Future.delayed(const Duration(milliseconds: 5000));
+
       // Run the ML model
       Future<String> inferenceFuture = runInference();
 
@@ -44,7 +45,8 @@ class _InferencePageState extends State<InferencePage> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = "Failed to run inference. Please try a different image.\n\nError: ${e.toString()}";
+          _errorMessage =
+              "Failed to run inference. Please try a different image.\n\nError: ${e.toString()}";
         });
       }
     }
@@ -52,18 +54,20 @@ class _InferencePageState extends State<InferencePage> {
 
   // Modified to return the label instead of setting state
   Future<String> runInference() async {
-    Interpreter interpreter = await Interpreter.fromAsset('assets/pokemon-classifier.tflite');
+    Interpreter interpreter =
+        await Interpreter.fromAsset('assets/pokemon-classifier.tflite');
     List<String> labels = await _loadLabels();
 
     var inputTensor = _preprocessImage(File(widget.imagePath));
     var outputShape = interpreter.getOutputTensor(0).shape;
-    var outputBuffer = List.generate(outputShape[0], (i) => List.filled(outputShape[1], 0.0));
-    
+    var outputBuffer =
+        List.generate(outputShape[0], (i) => List.filled(outputShape[1], 0.0));
+
     interpreter.run(inputTensor, outputBuffer);
-    
+
     List<double> prediction = outputBuffer[0];
     String predictionLabel = getPredictionLabel(prediction, labels);
-    
+
     interpreter.close();
     return predictionLabel;
   }
@@ -72,7 +76,7 @@ class _InferencePageState extends State<InferencePage> {
     final labelsData = await rootBundle.loadString('assets/labels.txt');
     return labelsData.split('\n').map((label) => label.trim()).toList();
   }
-  
+
   List<List<List<List<double>>>> _preprocessImage(File imageFile) {
     // This logic remains the same
     final imageBytes = imageFile.readAsBytesSync();
@@ -80,8 +84,11 @@ class _InferencePageState extends State<InferencePage> {
     if (image == null) throw Exception("Could not decode image.");
 
     final resizedImage = img.copyResize(image, width: 150, height: 150);
-    var inputTensor = List.generate(1, (i) => List.generate(150, (j) => List.generate(150, (k) => List.generate(3, (l) => 0.0))));
-    
+    var inputTensor = List.generate(
+        1,
+        (i) => List.generate(150,
+            (j) => List.generate(150, (k) => List.generate(3, (l) => 0.0))));
+
     for (var y = 0; y < 150; y++) {
       for (var x = 0; x < 150; x++) {
         final pixel = resizedImage.getPixel(x, y);
@@ -103,7 +110,14 @@ class _InferencePageState extends State<InferencePage> {
         bestIndex = i;
       }
     }
-    if (bestIndex == -1 || bestIndex >= labels.length) return "Unknown";
+    if (maxScore < 0.80) {
+      return "Unknown";
+    }
+
+    if (bestIndex == -1 || bestIndex >= labels.length) {
+      return "Unknown";
+    }
+
     return labels[bestIndex];
   }
 
@@ -112,8 +126,7 @@ class _InferencePageState extends State<InferencePage> {
       context,
       MaterialPageRoute(
           builder: (context) => InferenceResultPage(
-              imagePath: widget.imagePath,
-              predictionLabel: predictionLabel)),
+              imagePath: widget.imagePath, predictionLabel: predictionLabel)),
     );
   }
 
