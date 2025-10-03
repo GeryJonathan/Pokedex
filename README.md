@@ -1,94 +1,113 @@
+# Pokédex Classifier 📸
 
-# Pokedex Image Classifier
+A mobile application built with **Flutter** that uses a custom-trained **TensorFlow Lite** model to identify Pokémon from a phone's camera or gallery. Once identified with high confidence, the Pokémon is added to a persistent, personal Pokédex catalog.
 
-This project aims to create a Pokedex Image Classifier using TensorFlow Lite and Flutter. The app classifies images of Pokemon and displays the results in a user-friendly interface.
+---
 
-## Project Status
+## 📱 Screenshots & Demo
 
-**Ongoing**
 
-### TODO:
-- Quantize the model due to insufficient memory in the byte buffer.
-- Remodel the UI for a better user experience.
-- Add a Pokedex-style output page.
+| Splash Screen | Home Screen | Capture Animation |
+|---------------|-------------|-------------------|
+| <img src="screenshots/splash.gif" width="200"/> | <img src="screenshots/home.png" width="200"/> | <img src="screenshots/capture.gif" width="200"/> |
 
-## Features
+| Result Page | Pokédex (Captured) | Pokédex (Hidden) |
+|-------------|--------------------|------------------|
+| <img src="screenshots/result.png" width="200"/> | <img src="screenshots/pokedex_captured.png" width="200"/> | <img src="screenshots/pokedex_hidden.png" width="200"/> |
 
-- **Image Classification:** Classifies Pokemon images using a TensorFlow Lite model.
-- **User-Friendly Interface:** Simple and intuitive UI for image selection and result display.
-- **Pokedex-Style Output:** Planned feature to display results in a Pokedex-style interface.
 
-## Screenshots
+---
 
-| Screenshot 1 | Screenshot 2 | Screenshot 3 | Screenshot 4 |
-|------------|------------------|---------------------|----------------------|
-| ![Screenshot 1](screenshots/1.png) | ![Screenshot 2](screenshots/2.png) | ![Screenshot 3](screenshots/3.png) | ![Screenshot 4](screenshots/4.png) |
+## 📋 About The Project
 
-## Getting Started
+This project leverages **deep learning** to create a real-world Pokédex experience.  
+The app uses a custom **image classification model**, trained with **TensorFlow + Keras**, to identify the original **151 Pokémon** from user-provided images.
+
+### Highlights
+- Initial proof-of-concept proved feasibility but faced performance challenges due to model size.  
+- The model was optimized via **quantization**, reducing memory and improving inference speed.  
+- Uses **MobileNetV2** as the backbone, fine-tuned on a specialized Pokémon dataset.  
+- Runs fully offline thanks to **TensorFlow Lite** deployment.
+
+---
+
+## ✨ Features
+
+- ⚡ **Optimized On-Device AI**: Quantized MobileNetV2 model for fast, efficient offline classification.  
+- 🎯 **High-Confidence Predictions**: Identifies only when ≥80% confident for higher accuracy.  
+- 📷 **Camera & Gallery Support**: Capture via camera or choose from gallery.  
+- 🎬 **Engaging Capture Animation**: Mimics the classic Pokéball capture sequence.  
+- 📖 **Persistent Pokédex Catalog**: Tracks all 151 Pokémon locally, works offline.  
+- 📝 **Detailed Pokémon Info**: Stats, types, and artwork fetched via **PokéAPI**.  
+
+---
+
+## 📂 Project Structure
+
+├── Pokedex (Flutter)/ # Flutter Application \
+│ ├── assets/ \
+│ │ ├── images/ # Local Pokémon sprites (1.png, 2.png, ...) \
+│ │ ├── pokemon-classifier.tflite # Trained & quantized TFLite model \
+│ │ ├── labels.txt # Model labels \
+│ │ └── pokemon_list.json # Static list of Gen 1 Pokémon \
+│ ├── lib/ # Flutter source code \
+│ └── pubspec.yaml \
+│ \
+├── Pokemon Model (modeling)/ # ML Model Development \
+│ ├── Pokemon_Classifier.ipynb # Training & conversion notebook \
+│ ├── Testing.ipynb # Testing notebook \
+│ └── quantization.py # Quantization script \
+│ \
+└── screenshots/ # Screenshots & GIFs for README \
+
+
+
+---
+
+## 🧠 Model Training & Optimization
+
+- **Base Model:** MobileNetV2 (lightweight, mobile-friendly).  
+- **Dataset:** Curated images of the original 151 Pokémon.  
+- **Data Augmentation:** Rotation, flips, shifts, shear, and zoom for robustness.  
+
+### Training Process
+1. Freeze base MobileNetV2 layers, train new classifier head.  
+2. Fine-tune full model with low learning rate.  
+3. Achieved **~93% validation accuracy**.  
+
+### Optimization
+- Applied **Dynamic Range Quantization** (32-bit → 8-bit weights).  
+- Reduced file size & latency, improved inference speed.  
+- Exported to **TensorFlow Lite** format for Flutter integration.  
+
+---
+
+## 🛠️ Built With
+
+- [Flutter](https://flutter.dev/) – Cross-platform mobile framework  
+- [TensorFlow Lite](https://www.tensorflow.org/lite) – On-device inference  
+- [Provider](https://pub.dev/packages/provider) – State management  
+- [PokéAPI](https://pokeapi.co/) – Pokémon data API  
+- [Shared Preferences](https://pub.dev/packages/shared_preferences) – Local persistence  
+- [Google Colab / Jupyter](https://colab.research.google.com/) – Model training  
+
+---
+
+## 🚀 Getting Started
+
+Follow these steps to run the project locally:
 
 ### Prerequisites
-
-- [Flutter](https://flutter.dev/docs/get-started/install)
-- [TensorFlow Lite](https://www.tensorflow.org/lite/guide)
+- Install [Flutter SDK](https://docs.flutter.dev/get-started/install).
 
 ### Installation
+```bash
+# Clone repository
+git clone https://github.com/GeryJonathan/Pokedex.git
+cd "Pokedex/Pokedex"
 
-1. **Clone the repository:**
-   ```sh
-   git clone https://github.com/GeryJonathan/Pokedex.git
-   cd Pokedex
-   ```
+# Install dependencies
+flutter pub get
 
-2. **Install dependencies:**
-   ```sh
-   flutter pub get
-   ```
-
-3. **Add the TensorFlow Lite model and labels:**
-   - Place your `model_quant.tflite` in the `assets` folder.
-   - Place your `labels.txt` in the `assets` folder.
-
-4. **Update `pubspec.yaml`:**
-   Ensure your `pubspec.yaml` includes:
-   ```yaml
-   flutter:
-     assets:
-       - assets/model_quant.tflite
-       - assets/labels.txt
-   ```
-
-### Running the App
-
-1. **Connect a device or start an emulator.**
-2. **Run the app:**
-   ```sh
-   flutter run
-   ```
-
-## Quantizing the Model
-
-To reduce the model size and handle memory constraints, quantize your TensorFlow model as follows:
-
-1. **Convert and Quantize:**
-   ```python
-   import tensorflow as tf
-
-   # Load the SavedModel
-   saved_model_dir = 'path_to_saved_model_directory'
-   converter = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
-
-   # Enable dynamic range quantization
-   converter.optimizations = [tf.lite.Optimize.DEFAULT]
-
-   # Convert the model
-   tflite_quant_model = converter.convert()
-
-   # Save the quantized model to a file
-   with open('model_quant.tflite', 'wb') as f:
-       f.write(tflite_quant_model)
-   ```
-
-2. **Use the quantized model in your Flutter app:**
-   - Replace the existing model with `model_quant.tflite`.
-
-
+# Run on emulator or connected device
+flutter run
